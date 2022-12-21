@@ -1,0 +1,211 @@
+---
+title: "Final Project"
+author: "Carol Ling"
+date: "2022-09-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+library(tidyverse)
+library(ggridges)
+library(GGally)
+library(cowplot)
+library(magick)
+library(ggthemes)
+youtube <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-03-02/youtube.csv')
+
+youtube_red <- youtube[,c(1:2, 5:11, 15:17, 19, 25)]
+brand_ads <- youtube_red[2:9]
+brand_ads <- brand_ads %>%   
+  rowid_to_column() %>% # keep data for each row together
+  gather("col", "val", -brand) %>% 
+  mutate(brand=factor(brand)) %>% 
+  filter(val==1) %>% 
+  group_by(brand) %>% 
+  summarize(ad_type=paste(col, collapse=",")) %>%
+  complete(brand, fill = list(desired="none")) %>%
+  mutate(ad_type = strsplit(as.character(ad_type), ",")) %>% 
+  unnest(ad_type) %>%
+  filter(!(ad_type == "rowid"))
+```
+
+```{r}
+youtube_red <- youtube_red %>%
+  mutate(view_category = case_when(
+            view_count < 4000 ~ "Few\nLess than 4K",
+            view_count >= 4000 & view_count < 30000 ~ "Some\n4K to 30K",
+            view_count >= 30000 & view_count < 90000 ~ "Moderate\n30K to 90K",
+            view_count >= 90000 & view_count < 500000 ~ "Many\n90K to 500K",
+            view_count >= 500000 & view_count < 10000000 ~ "High\n500K to 10M",
+            TRUE ~ "Viral\n10M+"),
+         brand_category = case_when(
+            brand == "Hynudai" ~ "Cars", 
+            brand == "Kia" ~ "Cars",
+            brand == "Toyota" ~ "Cars",
+            brand == "Bud Light" ~ "Hard Drinks", 
+            brand == "Budweiser" ~ "Hard Drinks",
+            brand == "Coca-Cola" ~ "Soft Drinks", 
+            brand == "Pepsi" ~ "Soft Drinks",
+            brand == "Doritos" ~ "Food",
+            brand == "NFL" ~ "NFL",
+            brand == "E-Trade" ~ "E-Trade"),
+         alt_brand_category = case_when(
+            brand == "Hynudai" ~ "Cars",
+            brand == "Kia" ~ "Cars", 
+            brand == "Toyota" ~ "Cars",
+            brand == "Bud Light" ~ "Drinks", 
+            brand == "Budweiser" ~ "Drinks", 
+            brand == "Coca-Cola" ~ "Drinks", 
+            brand == "Pepsi" ~ "Drinks",
+            brand == "Doritos" ~ "Misc.", 
+            brand == "NFL"  ~ "Misc.", 
+            brand == "E-Trade" ~ "Misc."))
+
+youtube_red$view_category <- factor(youtube_red$view_category, levels = c("Few\nLess than 4K","Some\n4K to 30K", "Moderate\n30K to 90K", "Many\n90K to 500K", "High\n500K to 10M", "Viral\n10M+"))
+```
+
+```{r}
+eval_na <- youtube_red[!complete.cases(youtube_red),]
+eval_na
+```
+
+
+```{r, fig.height=2}
+# Mosiac Plot
+mosaicplot(table(youtube_red$view_category, youtube_red$brand), 
+           las = par("adj"), cex.axis = 0.6, shade = TRUE, ylab = "Brand",
+           xlab = "Views", main = "Mosaic Plot of Brand against Views")
+```
+
+```{r}
+# Conditional/Marginal Plot of Ad Types
+brand_plot <- brand_ads %>%
+  ggplot(aes(x = fct_infreq(brand), fill = ad_type)) +
+  geom_bar() +
+  scale_fill_manual(values = c("#648fff", "#785ef0", "#dc267f", "#ffb000", 
+                               "#009E73", "#fe6100", "#000000"), 
+                    labels = c("Animals", "Celebrity", "Danger", "Funny", 
+                               "Patriotic", "Shows Product Quickly", 
+                               "Uses Sex")) +
+  labs(title = "Count of Ad Type Among Brands", x = "Brands", y = "Count",
+       fill = "Ad Types", caption = "Source: FiveThirtyEight") +
+  theme(axis.ticks.x = element_blank(), axis.text.x=element_blank(), 
+        plot.title = element_text(hjust = 1), plot.caption.position = "plot",
+        legend.title = element_text( size=8), legend.text=element_text(size=8))
+
+images <- axis_canvas(brand_plot, axis = 'x') + 
+  draw_image("https://1000logos.net/wp-content/uploads/2021/04/Bud-Light-logo-768x432.png", x = 0.5, scale = 0.85) +
+  draw_image("https://logos-world.net/wp-content/uploads/2020/12/Budweiser-Logo-2016-present.jpg", x = 1.5, scale = 1.1) +
+  draw_image("https://1000logos.net/wp-content/uploads/2020/07/Doritos-Logo-768x480.png", x = 2.5, scale = 1.2) +
+  draw_image("https://1000logos.net/wp-content/uploads/2017/05/Pepsi-Logo-1536x864.png", x = 3.5, scale = 1.1) +
+  draw_image("https://1000logos.net/wp-content/uploads/2021/05/Coca-Cola-logo-768x432.png", x = 4.5, scale = 0.9) +
+  draw_image("https://1000logos.net/wp-content/uploads/2018/04/Hyundai-logo-768x432.png", x = 5.5, scale = 1.2) +
+  draw_image("https://1000logos.net/wp-content/uploads/2020/02/kia-logo-1536x1024.jpeg", x = 6.5, scale = 0.9) +
+  draw_image("https://play-lh.googleusercontent.com/mBEKNfr2O42VS4emsQF59jt0TpMbwRLJVUoIG7LvUYPdolnNyEGfJJw3joSn6ZbTJdE", x = 7.5, scale = 0.85) +
+  draw_image("https://1000logos.net/wp-content/uploads/2021/04/Toyota-logo-768x432.png", x = 8.5, scale = 1) +
+  draw_image("https://1000logos.net/wp-content/uploads/2017/05/NFL-logo-768x518.png", x = 9.5, scale = 1.2) 
+
+ggdraw(insert_xaxis_grob(brand_plot, images, position = "bottom"))
+```
+
+```{r}
+brand_count <- brand_ads %>%
+  group_by(ad_type) %>%
+  mutate(count = n()) %>%
+  unique()
+
+brand_prop <- brand_ads %>%
+  count(brand, ad_type) %>%
+  group_by(brand) %>%
+  mutate(prop = n/sum(n))
+
+brand_prop$brand <- factor(brand_prop$brand, levels = c("Bud Light", "Budweiser", "Doritos", "Pepsi", "Coca-Cola", "Hynudai", "Kia", "E-Trade", "Toyota", "NFL"))
+
+brand_plot_prop <- brand_prop %>%
+  ggplot(aes(x = brand, fill = ad_type)) +
+  geom_bar(aes(y = prop), stat = "identity") +
+  scale_fill_manual(values = c("#648fff", "#785ef0", "#dc267f", "#ffb000", 
+                               "#009E73", "#fe6100", "#000000"), 
+                    labels = c("Animals", "Celebrity", "Danger", "Funny", 
+                               "Patriotic", "Shows Product Quickly", 
+                               "Uses Sex")) +
+  labs(title = "Proportion of Ad Type Among Brands", x = "Brands", 
+       y = "Proportion", fill = "Ad Types", 
+       caption = "Source: FiveThirtyEight") +
+  theme(axis.ticks.x = element_blank(), axis.text.x=element_blank(), 
+        plot.title = element_text(hjust = 1), plot.caption.position = "plot",
+        legend.title = element_text( size=8), legend.text=element_text(size=8))
+
+ggdraw(insert_xaxis_grob(brand_plot_prop, images, position = "bottom"))
+```
+
+
+```{r}
+# Pairs Plot
+youtube_quant <- youtube_red[c(1, 10:13)] 
+# ggpairs(youtube_quant)
+
+youtube_quant <- youtube_quant[complete.cases(youtube_quant),]
+
+library(ggcorrplot)
+youtube_quant %>%
+  cor() %>%
+  ggcorrplot(hc.order = TRUE, type = "lower", lab = TRUE, title = "Correlation of Video Statistics")
+```
+
+
+```{r}
+# Scatter Plot
+youtube_brand <- filter(youtube_red, youtube_red$brand_category == "Cars")
+youtube_brand %>%
+          ggplot(aes(x = year, y = view_count, color = funny)) +
+          geom_point(alpha = 0.5) +
+          geom_smooth(method = "lm", level = 0.95) +
+          labs(x = "Year", y = "View Count", col = "Funny",
+               title = "Car Brand's View Count over Time")
+
+
+
+# Ridgeplot
+brand_viz <- youtube_red %>%
+  ggplot(aes(x = like_count/(like_count + dislike_count), y = brand)) +
+  geom_density_ridges() +
+  labs(x = "Distribution of Like Percentage", y = "Brand",
+       title = "Favorability of Super Bowl Ads by Brand")
+
+## Heatmap
+youtube_clean %>%
+  ggplot(aes(x = scale(like_count/(like_count + dislike_count)), y = scale(view_count))) +
+  stat_density2d(aes(fill = after_stat(density)), geom = "tile",
+                 contour = FALSE) +
+  geom_point(alpha = 0.4) +
+  scale_fill_gradient(low = "white", high = "red") +
+  labs(x = "Like Percentage", y = "View Count",
+       title = "Undecided")
+```
+
+<!-- **How are various quantitative factors related to each other and their distributions?** -->
+
+<!-- + Marginal distribution of quantitative factors (pairs plot) and pca (quant only) -->
+
+<!-- + Marginal bar plot for brands and ad categories -->
+
+<!-- + In text describe year and category id -->
+
+<!-- **How do various characteristics of ads increase the view count of different brands over time?** -->
+
+<!-- + Combine brand types for more data to make the same plot as shiny app from homework 5 (scatterplot/smooth) -->
+
+<!-- **Which brands/industry have the most likable Super Bowl ads?** -->
+
+<!-- + View count but binned vs brands (consolidated if necessary) in a mosaic plot -->
+
+<!-- **What are some of the most frequently used words in Super Bowl Ad Titles? Is it all postive words?** -->
+
+<!-- + Word cloud -->
