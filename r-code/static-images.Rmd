@@ -189,23 +189,3 @@ youtube_clean %>%
   labs(x = "Like Percentage", y = "View Count",
        title = "Undecided")
 ```
-
-<!-- **How are various quantitative factors related to each other and their distributions?** -->
-
-<!-- + Marginal distribution of quantitative factors (pairs plot) and pca (quant only) -->
-
-<!-- + Marginal bar plot for brands and ad categories -->
-
-<!-- + In text describe year and category id -->
-
-<!-- **How do various characteristics of ads increase the view count of different brands over time?** -->
-
-<!-- + Combine brand types for more data to make the same plot as shiny app from homework 5 (scatterplot/smooth) -->
-
-<!-- **Which brands/industry have the most likable Super Bowl ads?** -->
-
-<!-- + View count but binned vs brands (consolidated if necessary) in a mosaic plot -->
-
-<!-- **What are some of the most frequently used words in Super Bowl Ad Titles? Is it all postive words?** -->
-
-<!-- + Word cloud -->
