@@ -1,0 +1,280 @@
+---
+title: "Plot for EDA project"
+author: "Xiyao Wang"
+date: "2022-10-09"
+output: pdf_document
+---
+```{r}
+youtube %>%
+  ggplot(aes(x = year,
+             fill = funny)) +
+  geom_bar() +
+#  geom_density(color = "red") +
+  facet_wrap(~ brand) +  
+  labs(y = "Count",
+       title = "Conditional distribution of Year given funny")
+```
+```{r}
+youtube %>%
+  ggplot(aes(x = year,
+             fill = show_product_quickly)) +
+  geom_bar() +
+#  geom_density(color = "red") +
+  facet_wrap(~ brand) +  
+  labs(y = "Count",
+       title = "Conditional distribution of Year given show product quickly")
+```
+```{r}
+youtube %>%
+  ggplot(aes(x = year,
+             fill = use_sex)) +
+  geom_histogram() +
+  facet_wrap(~ brand) +  
+  labs(y = "Count",
+       title = "Conditional distribution of Year given Use Sex")
+```
+```{r}
+youtube %>%
+  ggplot(aes(x = year,
+             fill = danger)) +
+  geom_bar() +
+  facet_wrap(~ brand) +  
+  labs(y = "Count",
+       title = "Conditional distribution of Year given Danger")
+```
+
+```{r}
+youtube %>%
+  ggplot(aes(x = year,
+             fill = celebrity)) +
+  geom_bar() +
+  facet_wrap(~ brand) +  
+  labs(y = "Count",
+       title = "Conditional distribution of Year given Use Sex")
+```
+
+```{r}
+library(tidyverse)
+library(factoextra)
+library(tidytuesdayR)
+# tuesdata <- tidytuesdayR::tt_load('2021-03-02')
+# youtube <- tuesdata$youtube
+youtube_pca <- youtube[, -c(3, 4, 12, 13, 14, 20, 21, 22, 23, 24, 25)]
+youtube_pca_scale <- prcomp(dplyr::select(na.omit(youtube_pca), 
+                                          c(year, view_count:dislike_count, comment_count)), 
+                            center = TRUE, scale. = TRUE)
+
+fviz_pca_biplot(
+  youtube_pca_scale, 
+  label = "var",
+  alpha.ind = .25,
+  alpha.var = .75) +
+  theme(plot.title=element_text(hjust=0.5)) +
+#  repel = TRUE,
+#  col.ind = na.omit(youtube_pca)$year) +
+  labs(title = "PCA of quantitative variables for SuperBowl ads")
+```
+```{r}
+# library(tidyverse)
+library(tidytext)
+library(SnowballC)
+library(wordcloud)
+data("stop_words")
+youtube_word <- youtube[, c(2, 21, 22, 24)]
+title_tokens <- youtube_word %>% 
+  unnest_tokens(word, title)
+title_tokens <- title_tokens %>% 
+  filter(!(word %in% stop_words$word))
+title_tokens <- title_tokens %>% 
+  mutate(stem = wordStem(word))
+# head(title_tokens)
+
+token_summary <- title_tokens %>%
+  group_by(stem) %>%
+  count() %>%
+  ungroup() 
+wordcloud(words = token_summary$stem,
+          freq = token_summary$n,
+          random.order = FALSE,
+          max.words = 100, 
+          colors = brewer.pal(8, "Dark2"))
+
+```
+```{r}
+brand_token_summary <- title_tokens %>%
+  group_by(brand, stem) %>%
+  count() %>%
+  ungroup() 
+brand_token_summary <- brand_token_summary %>%
+  bind_tf_idf(stem, brand, n)
+brand_token_summary
+
+brand_token_summary %>%
+#  filter(character %in% c("Michael", "Jan", "Jim", "Pam")) %>%
+  group_by(brand) %>%
+  slice_max(tf_idf, n = 10, with_ties = FALSE) %>%
+  ungroup() %>%
+  mutate(stem = reorder_within(stem, tf_idf,
+                               brand)) %>%
+  ggplot(aes(y = tf_idf, x = stem),
+         fill = "darkblue", alpha = 0.5) +
+  geom_col() +
+  coord_flip() +
+  scale_x_reordered() +
+  facet_wrap(~ brand,
+             scales = "free") +
+  labs(y = "TF-IDF", x = NULL)
+
+
+```
+```{r}
+tidy_all_tokens <- youtube_word %>%
+  unnest_tokens(word, title)
+tidy_sentiment_tokens <- tidy_all_tokens %>%
+  inner_join(get_sentiments("bing"))
+
+tidy_sentiment_tokens %>%
+  group_by(brand, sentiment) %>%
+  summarize(n_words = n()) %>%
+  ungroup() %>%
+  group_by(brand) %>%
+  mutate(total_assigned_words = sum(n_words)) %>%
+  ungroup() %>%
+  mutate(brand = 
+           fct_reorder(brand, 
+                       total_assigned_words)) %>%
+  ggplot(aes(x = brand, y = n_words, 
+             fill = sentiment)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  scale_fill_manual(values = c("red", "blue")) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+data("stop_words")
+youtube_word <- youtube[, c(2, 21, 22, 24)]
+descrip_tokens <- youtube_word %>% 
+  unnest_tokens(word, description)
+descrip_tokens <- descrip_tokens %>% 
+  filter(!(word %in% stop_words$word))
+descrip_tokens <- descrip_tokens %>% 
+  mutate(stem = wordStem(word))
+# head(title_tokens)
+
+token_summary_descrip <- descrip_tokens %>%
+  group_by(stem) %>%
+  count() %>%
+  ungroup() 
+wordcloud(words = token_summary_descrip$stem,
+          freq = token_summary_descrip$n,
+          random.order = FALSE,
+          max.words = 100, 
+          colors = brewer.pal(8, "Dark2"))
+```
+```{r}
+brand_token_summary <- descrip_tokens %>%
+  group_by(brand, stem) %>%
+  count() %>%
+  ungroup() 
+brand_token_summary <- brand_token_summary %>%
+  bind_tf_idf(stem, brand, n)
+brand_token_summary
+
+brand_token_summary %>%
+  group_by(brand) %>%
+  slice_max(tf_idf, n = 10, with_ties = FALSE) %>%
+  ungroup() %>%
+  mutate(stem = reorder_within(stem, tf_idf,
+                               brand)) %>%
+  ggplot(aes(y = tf_idf, x = stem),
+         fill = "darkblue", alpha = 0.5) +
+  geom_col() +
+  coord_flip() +
+  scale_x_reordered() +
+  facet_wrap(~ brand,
+             scales = "free") +
+  labs(y = "TF-IDF", x = NULL)
+```
+```{r}
+tidy_all_tokens <- youtube_word %>%
+  unnest_tokens(word, description)
+tidy_sentiment_tokens <- tidy_all_tokens %>%
+  inner_join(get_sentiments("bing"))
+
+tidy_sentiment_tokens %>%
+  group_by(brand, sentiment) %>%
+  summarize(n_words = n()) %>%
+  ungroup() %>%
+  group_by(brand) %>%
+  mutate(total_assigned_words = sum(n_words)) %>%
+  ungroup() %>%
+  mutate(brand = 
+           fct_reorder(brand, 
+                       total_assigned_words)) %>%
+  ggplot(aes(x = brand, y = n_words, 
+             fill = sentiment)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  scale_fill_manual(values = c("red", "blue")) +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        plot.title=element_text(hjust=0.5)) +
+  labs(y = "Words Counts",
+       x = "Brands",
+       title = "Sentiment Analysis of Description")
+```
+```{r}
+# First for Coke, make the positive summary:
+coke_positive_summary <- tidy_sentiment_tokens %>%
+  filter(brand == "Coca-Cola", sentiment == "positive") %>%
+  group_by(word) %>%
+  count()
+# Now Coke's negative summary:
+coke_negative_summary <- tidy_sentiment_tokens %>%
+  filter(brand == "Coca-Cola", sentiment == "negative") %>%
+  group_by(word) %>%
+  count()
+
+# Now make the word clouds for these two tables:
+par(mfrow = c(1,2))
+# word cloud for Coke's positive words
+wordcloud(words = coke_positive_summary$word,
+          freq = coke_positive_summary$n,
+          random.order = FALSE, color = "darkblue", 
+          min.freq = 1,
+          scale = c(5, 1.1))
+title(main = "Coca-Cola's Positive Words")
+fig.size = 5
+# word cloud for Coke's negative words
+wordcloud(words = coke_negative_summary$word,
+          freq = coke_negative_summary$n,
+          random.order = FALSE, color = "darkred", 
+          min.freq = 1,
+          scale = c(6, 0.9))
+title(main = "Coca-Cola's Negative Words")
+```
+
+```{r}
+youtube$like_ratio <- youtube$like_count/(youtube$like_count + youtube$dislike_count)
+youtube %>% 
+  ggplot(aes(y = log(view_count), 
+             x = like_ratio)) +
+  stat_density2d(aes(fill = after_stat(density)),
+                 geom = "tile",
+                 contour = FALSE) +
+  geom_point(alpha = 0.2) +
+  geom_smooth() +
+  scale_fill_gradient(low = "white",
+                      high = "red") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid = element_blank(),
+        panel.border = element_blank(),
+        axis.line = element_line(size = 0.1)) +
+  labs(y = "View Count",
+       x = "Like Ratio",
+       title = "Heatmap of View Count vs Like Ratio")
+```
+
