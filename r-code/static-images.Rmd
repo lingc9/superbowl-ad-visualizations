@@ -2,7 +2,9 @@
 title: "Final Project"
 author: "Carol Ling"
 date: "2022-09-27"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -76,7 +78,7 @@ eval_na
 ```
 
 
-```{r, fig.height=2}
+```{r, fig.width=10, fig.height=7}
 # Mosiac Plot
 mosaicplot(table(youtube_red$view_category, youtube_red$brand), 
            las = par("adj"), cex.axis = 0.6, shade = TRUE, ylab = "Brand",
@@ -149,7 +151,7 @@ ggdraw(insert_xaxis_grob(brand_plot_prop, images, position = "bottom"))
 ```{r}
 # Pairs Plot
 youtube_quant <- youtube_red[c(1, 10:13)] 
-# ggpairs(youtube_quant)
+ggpairs(youtube_quant)
 
 youtube_quant <- youtube_quant[complete.cases(youtube_quant),]
 
@@ -179,7 +181,11 @@ brand_viz <- youtube_red %>%
   labs(x = "Distribution of Like Percentage", y = "Brand",
        title = "Favorability of Super Bowl Ads by Brand")
 
-## Heatmap
+## Heatmap 
+youtube_clean <- youtube_red %>%
+  drop_na(view_count) %>%
+  drop_na(like_count) %>%
+  drop_na(dislike_count)
 youtube_clean %>%
   ggplot(aes(x = scale(like_count/(like_count + dislike_count)), y = scale(view_count))) +
   stat_density2d(aes(fill = after_stat(density)), geom = "tile",
